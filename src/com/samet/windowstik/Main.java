@@ -508,7 +508,7 @@ public class Main extends Activity {
     private String installedVersion() {
         try {
             String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-            return version != null && version.startsWith("v") ? version.substring(1) : version;
+            return version != null && (version.startsWith("v") || version.startsWith("V")) ? version.substring(1) : version;
         } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
             return "";
         }

@@ -10,8 +10,8 @@ android {
         applicationId 'com.samet.windowstik'
         minSdk 28
         targetSdk 35
-        versionCode 53
-        versionName '1.2'
+        versionCode 54
+        versionName 'V1'
     }
 
     sourceSets {
