@@ -33,8 +33,8 @@ final class BluetoothControls {
     private final Activity activity;
     private final Runnable changed;
     private final BluetoothAdapter adapter;
-    private BluetoothHidDevice profile;
-    private BluetoothDevice host;
+    private volatile BluetoothHidDevice profile;
+    private volatile BluetoothDevice host;
     private String selectedHost;
     private boolean registered;
     private boolean pending;
@@ -419,13 +419,15 @@ final class BluetoothControls {
         }
     }
 
-    private boolean keyboardReport(int modifiers, int code) {
-        if (host == null || profile == null) return false;
+    private synchronized boolean keyboardReport(int modifiers, int code) {
+        BluetoothDevice device = host;
+        BluetoothHidDevice hid = profile;
+        if (device == null || hid == null) return false;
         byte[] press = new byte[8];
         press[0] = (byte) modifiers;
         press[2] = (byte) code;
-        boolean sent = profile.sendReport(host, 1, press);
-        return profile.sendReport(host, 1, new byte[8]) && sent;
+        boolean sent = hid.sendReport(device, 1, press);
+        return hid.sendReport(device, 1, new byte[8]) && sent;
     }
 
     private static byte axis(int value) {

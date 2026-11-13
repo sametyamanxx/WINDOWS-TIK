@@ -51,31 +51,52 @@ public class Main extends Activity {
     private boolean visible;
     private View keyboardInput;
     private TextView keyboardPreview;
+    private ScrollView keyboardPreviewScroll;
     private final StringBuilder typedText = new StringBuilder();
+    private final ExecutorService typing = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS,
+        new ArrayBlockingQueue<>(128));
 
-    private void previewText(String text) {
-        typedText.append(text);
-        int count = typedText.codePointCount(0, typedText.length());
-        if (count > 200) typedText.delete(0, typedText.offsetByCodePoints(0, count - 200));
-        keyboardPreview.setText(typedText);
-    }
-
-    private boolean keyboardKey(int code) {
-        if (!sendKey(code)) return false;
-        if (code == 0x28) previewText("\n");
-        if (code == 0x2a && typedText.length() > 0) {
+    private void updateKeyboardPreview(String text, int backspaces) {
+        while (backspaces-- > 0 && typedText.length() > 0) {
             int end = typedText.length();
             typedText.delete(typedText.offsetByCodePoints(end, -1), end);
-            keyboardPreview.setText(typedText);
         }
-        return true;
+        typedText.append(text);
+        keyboardPreview.setText(typedText);
+        keyboardPreviewScroll.post(() -> keyboardPreviewScroll.scrollTo(0, keyboardPreview.getHeight()));
     }
 
-    private void clearKeyboardPreview() {
-        typedText.setLength(0);
-        if (keyboardPreview != null) {
-            keyboardPreview.setText("");
-            keyboardPreview.setVisibility(View.GONE);
+    private boolean queueKeyboardInput(String text, int before, int after) {
+        BluetoothControls connection = bluetooth;
+        if (connection == null || !connection.connected()) return false;
+        boolean turkish = getPreferences(MODE_PRIVATE).getBoolean("turkishQ", true);
+        try {
+            typing.execute(() -> {
+                int removed = 0;
+                for (; removed < before && connection.key(0x2a); removed++) { }
+                boolean sent = removed == before;
+                for (int i = 0; sent && i < after; i++) sent = connection.key(0x4c);
+                int offset = 0;
+                while (sent && offset < text.length()) {
+                    int end = text.offsetByCodePoints(offset, 1);
+                    String character = text.substring(offset, end);
+                    sent = character.equals("\n") ? connection.key(0x28) : connection.type(character, turkish);
+                    if (sent) offset = end;
+                }
+                int appliedBackspaces = removed;
+                String sentText = text.substring(0, offset);
+                boolean success = sent;
+                ui.post(() -> {
+                    if (isDestroyed()) return;
+                    updateKeyboardPreview(sentText, appliedBackspaces);
+                    if (!success && visible)
+                        Toast.makeText(this, "Metnin tamamı gönderilemedi.", Toast.LENGTH_SHORT).show();
+                });
+            });
+            return true;
+        } catch (RejectedExecutionException full) {
+            Toast.makeText(this, "Klavye gönderimi yoğun. Biraz bekleyip tekrar dene.", Toast.LENGTH_SHORT).show();
+            return false;
         }
     }
 
@@ -218,7 +239,7 @@ public class Main extends Activity {
         choosingDevice = false;
         closeDevicePanel();
         closeWindowsMenu();
-        clearKeyboardPreview();
+        if (keyboardPreviewScroll != null) keyboardPreviewScroll.setVisibility(View.GONE);
         if (keyboardInput != null) keyboardInput.clearFocus();
         if (bluetooth != null) {
             bluetooth.close();
@@ -451,30 +472,21 @@ public class Main extends Activity {
                     | android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING;
                 return new android.view.inputmethod.BaseInputConnection(this, true) {
                     @Override public boolean commitText(CharSequence text, int cursor) {
-                        String[] lines = text.toString().split("\n", -1);
-                        for (int i = 0; i < lines.length; i++) {
-                            if (i > 0 && !keyboardKey(0x28)) return false;
-                            if (!lines[i].isEmpty() && (bluetooth == null || !bluetooth.connected()
-                                    || !bluetooth.type(java.text.Normalizer.normalize(lines[i], java.text.Normalizer.Form.NFC),
-                                        getPreferences(MODE_PRIVATE).getBoolean("turkishQ", true)))) {
-                                Toast.makeText(Main.this, "Karakter gönderilemedi. Bağlantıyı ve klavye düzenini kontrol et.",
-                                    Toast.LENGTH_SHORT).show();
-                                return false;
-                            }
-                            if (!lines[i].isEmpty()) previewText(lines[i]);
-                        }
-                        return true;
+                        return queueKeyboardInput(java.text.Normalizer.normalize(text,
+                            java.text.Normalizer.Form.NFC), 0, 0);
                     }
 
-                    @Override public boolean performEditorAction(int action) { return keyboardKey(0x28); }
+                    @Override public boolean performEditorAction(int action) {
+                        return queueKeyboardInput("\n", 0, 0);
+                    }
 
                     @Override public boolean sendKeyEvent(KeyEvent event) {
                         int code = event.getKeyCode();
-                        if (code != KeyEvent.KEYCODE_ENTER && code != KeyEvent.KEYCODE_DEL) {
+                        if (code != KeyEvent.KEYCODE_ENTER && code != KeyEvent.KEYCODE_DEL)
                             return super.sendKeyEvent(event);
-                        }
                         return event.getAction() != KeyEvent.ACTION_DOWN
-                            || keyboardKey(code == KeyEvent.KEYCODE_ENTER ? 0x28 : 0x2a);
+                            || (code == KeyEvent.KEYCODE_ENTER ? queueKeyboardInput("\n", 0, 0)
+                                : queueKeyboardInput("", 1, 0));
                     }
 
                     @Override public boolean deleteSurroundingTextInCodePoints(int before, int after) {
@@ -482,9 +494,7 @@ public class Main extends Activity {
                     }
 
                     @Override public boolean deleteSurroundingText(int before, int after) {
-                        for (int i = 0; i < before; i++) if (!keyboardKey(0x2a)) return false;
-                        for (int i = 0; i < after; i++) if (!sendKey(0x4c)) return false;
-                        return true;
+                        return queueKeyboardInput("", before, after);
                     }
                 };
             }
@@ -546,10 +556,6 @@ public class Main extends Activity {
         } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
             return "";
         }
-    }
-
-    private boolean sendKey(int code) {
-        return bluetooth != null && bluetooth.connected() && bluetooth.key(code);
     }
 
     private String[] bluetoothPermissions() {
@@ -824,10 +830,11 @@ public class Main extends Activity {
         keyboardPreview = text("", 16);
         keyboardPreview.setBackgroundColor(getColor(R.color.surface));
         keyboardPreview.setPadding(dp(14), dp(6), dp(14), dp(6));
-        keyboardPreview.setMaxLines(2);
-        keyboardPreview.setEllipsize(android.text.TextUtils.TruncateAt.START);
-        keyboardPreview.setVisibility(View.GONE);
-        page.addView(keyboardPreview, new LinearLayout.LayoutParams(-1, -2));
+        keyboardPreviewScroll = new ScrollView(this);
+        keyboardPreviewScroll.setFocusable(false);
+        keyboardPreviewScroll.addView(keyboardPreview, new ScrollView.LayoutParams(-1, -2));
+        keyboardPreviewScroll.setVisibility(View.GONE);
+        page.addView(keyboardPreviewScroll, new LinearLayout.LayoutParams(-1, dp(72)));
         page.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
             WindowInsets insets = page.getRootWindowInsets();
             boolean imeVisible;
@@ -839,10 +846,12 @@ public class Main extends Activity {
                 imeVisible = page.getRootView().getHeight() - frame.bottom > dp(120);
             }
             boolean show = imeVisible && keyboardInput.hasFocus();
-            if (show && keyboardPreview.getVisibility() != View.VISIBLE)
-                keyboardPreview.setVisibility(View.VISIBLE);
-            else if (!show && keyboardPreview.getVisibility() == View.VISIBLE)
-                clearKeyboardPreview();
+            if (show && keyboardPreviewScroll.getVisibility() != View.VISIBLE) {
+                keyboardPreviewScroll.setVisibility(View.VISIBLE);
+                keyboardPreviewScroll.post(() -> keyboardPreviewScroll.scrollTo(0, keyboardPreview.getHeight()));
+            } else if (!show && keyboardPreviewScroll.getVisibility() == View.VISIBLE) {
+                keyboardPreviewScroll.setVisibility(View.GONE);
+            }
         });
         footer.setBackgroundColor(getColor(R.color.surface));
         page.setOnApplyWindowInsetsListener((view, insets) -> {
@@ -1084,5 +1093,5 @@ public class Main extends Activity {
         
     }
 
-    @Override protected void onDestroy() { generation++; ui.removeCallbacksAndMessages(null); network.shutdownNow(); if (bluetooth != null) bluetooth.close(); super.onDestroy(); }
+    @Override protected void onDestroy() { generation++; ui.removeCallbacksAndMessages(null); network.shutdownNow(); typing.shutdownNow(); if (bluetooth != null) bluetooth.close(); super.onDestroy(); }
 }
