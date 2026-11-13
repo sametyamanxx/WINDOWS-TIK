@@ -1,0 +1,11 @@
+<resources>
+<color name="canvas">#20232C</color><color name="surface">#292D38</color><color name="ink">#F1F3F8</color><color name="secondary">#BAC3D2</color><color name="line">#454B58</color><color name="accent">#00A4EF</color><color name="on_accent">#102824</color><color name="ripple">#4400A4EF</color>
+<style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+<item name="android:windowBackground">@color/canvas</item><item name="android:colorAccent">@color/accent</item><item name="android:statusBarColor">@color/canvas</item><item name="android:navigationBarColor">@color/canvas</item><item name="android:windowLightStatusBar">false</item><item name="android:windowLightNavigationBar">false</item>
+</style>
+<color name="pad">#CC202632</color><color name="chooser">#2E333F</color>
+<color name="save_button">#60B7FF</color>
+<color name="on_save_button">#102538</color>
+<color name="delete_button">#F58B95</color>
+<color name="on_delete_button">#37161C</color>
+</resources>

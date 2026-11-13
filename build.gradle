@@ -1,0 +1,24 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+android {
+    namespace 'com.samet.windowstik'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.samet.windowstik'
+        minSdk 28
+        targetSdk 35
+        versionCode 53
+        versionName '1.2'
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            res.srcDirs = ['res']
+        }
+    }
+}
