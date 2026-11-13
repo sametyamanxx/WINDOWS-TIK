@@ -822,8 +822,6 @@ public class Main extends Activity {
         LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(-1, dp(50));
         page.addView(footer, footerParams);
         keyboardPreview = text("", 16);
-        keyboardPreview.setHint("Yazdıkların burada görünür");
-        keyboardPreview.setHintTextColor(getColor(R.color.secondary));
         keyboardPreview.setBackgroundColor(getColor(R.color.surface));
         keyboardPreview.setPadding(dp(14), dp(6), dp(14), dp(6));
         keyboardPreview.setMaxLines(2);
