@@ -673,8 +673,8 @@ public class Main extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.windows_menu);
-        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(27), dp(27));
+        logo.setImageResource(R.drawable.app_icon);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(36), dp(36));
         logoParams.setMarginEnd(dp(10));
         header.addView(logo, logoParams);
         TextView title = text("WİNDOWS TIK", 22);
@@ -784,7 +784,7 @@ public class Main extends Activity {
         LinearLayout footer = new LinearLayout(this);
         footer.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
         footer.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        footer.setPadding(dp(12), 0, dp(12), 0);
+        footer.setPadding(dp(2), 0, dp(2), 0);
         LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(-1, dp(50));
         page.addView(footer, footerParams);
         footer.setBackgroundColor(getColor(R.color.surface));

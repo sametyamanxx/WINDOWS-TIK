@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.samet.windowstik" android:versionCode="54" android:versionName="V1">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.samet.windowstik" android:versionCode="55" android:versionName="V1">
 <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="35"/>
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
@@ -8,7 +8,7 @@
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>
 <uses-feature android:name="android.hardware.bluetooth" android:required="false"/>
-<application android:label="Windows Tık" android:icon="@drawable/windows_menu" android:allowBackup="false" android:theme="@style/AppTheme">
+<application android:label="Windows Tık" android:icon="@drawable/app_icon" android:allowBackup="false" android:theme="@style/AppTheme">
 <activity android:name=".Main" android:windowSoftInputMode="adjustResize" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
 <receiver android:name=".UpdateResult" android:exported="false"/>
 </application>
