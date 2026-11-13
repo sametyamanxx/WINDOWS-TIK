@@ -50,6 +50,34 @@ public class Main extends Activity {
     private ScrollView startPanel;
     private boolean visible;
     private View keyboardInput;
+    private TextView keyboardPreview;
+    private final StringBuilder typedText = new StringBuilder();
+
+    private void previewText(String text) {
+        typedText.append(text);
+        int count = typedText.codePointCount(0, typedText.length());
+        if (count > 200) typedText.delete(0, typedText.offsetByCodePoints(0, count - 200));
+        keyboardPreview.setText(typedText);
+    }
+
+    private boolean keyboardKey(int code) {
+        if (!sendKey(code)) return false;
+        if (code == 0x28) previewText("\n");
+        if (code == 0x2a && typedText.length() > 0) {
+            int end = typedText.length();
+            typedText.delete(typedText.offsetByCodePoints(end, -1), end);
+            keyboardPreview.setText(typedText);
+        }
+        return true;
+    }
+
+    private void clearKeyboardPreview() {
+        typedText.setLength(0);
+        if (keyboardPreview != null) {
+            keyboardPreview.setText("");
+            keyboardPreview.setVisibility(View.GONE);
+        }
+    }
 
     private static class Target {
         final String ip, mac;
@@ -190,6 +218,7 @@ public class Main extends Activity {
         choosingDevice = false;
         closeDevicePanel();
         closeWindowsMenu();
+        clearKeyboardPreview();
         if (keyboardInput != null) keyboardInput.clearFocus();
         if (bluetooth != null) {
             bluetooth.close();
@@ -424,7 +453,7 @@ public class Main extends Activity {
                     @Override public boolean commitText(CharSequence text, int cursor) {
                         String[] lines = text.toString().split("\n", -1);
                         for (int i = 0; i < lines.length; i++) {
-                            if (i > 0 && !sendKey(0x28)) return false;
+                            if (i > 0 && !keyboardKey(0x28)) return false;
                             if (!lines[i].isEmpty() && (bluetooth == null || !bluetooth.connected()
                                     || !bluetooth.type(java.text.Normalizer.normalize(lines[i], java.text.Normalizer.Form.NFC),
                                         getPreferences(MODE_PRIVATE).getBoolean("turkishQ", true)))) {
@@ -432,11 +461,12 @@ public class Main extends Activity {
                                     Toast.LENGTH_SHORT).show();
                                 return false;
                             }
+                            if (!lines[i].isEmpty()) previewText(lines[i]);
                         }
                         return true;
                     }
 
-                    @Override public boolean performEditorAction(int action) { return sendKey(0x28); }
+                    @Override public boolean performEditorAction(int action) { return keyboardKey(0x28); }
 
                     @Override public boolean sendKeyEvent(KeyEvent event) {
                         int code = event.getKeyCode();
@@ -444,11 +474,15 @@ public class Main extends Activity {
                             return super.sendKeyEvent(event);
                         }
                         return event.getAction() != KeyEvent.ACTION_DOWN
-                            || sendKey(code == KeyEvent.KEYCODE_ENTER ? 0x28 : 0x2a);
+                            || keyboardKey(code == KeyEvent.KEYCODE_ENTER ? 0x28 : 0x2a);
+                    }
+
+                    @Override public boolean deleteSurroundingTextInCodePoints(int before, int after) {
+                        return deleteSurroundingText(before, after);
                     }
 
                     @Override public boolean deleteSurroundingText(int before, int after) {
-                        for (int i = 0; i < before; i++) if (!sendKey(0x2a)) return false;
+                        for (int i = 0; i < before; i++) if (!keyboardKey(0x2a)) return false;
                         for (int i = 0; i < after; i++) if (!sendKey(0x4c)) return false;
                         return true;
                     }
@@ -787,6 +821,31 @@ public class Main extends Activity {
         footer.setPadding(dp(2), 0, dp(2), 0);
         LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(-1, dp(50));
         page.addView(footer, footerParams);
+        keyboardPreview = text("", 16);
+        keyboardPreview.setHint("Yazdıkların burada görünür");
+        keyboardPreview.setHintTextColor(getColor(R.color.secondary));
+        keyboardPreview.setBackgroundColor(getColor(R.color.surface));
+        keyboardPreview.setPadding(dp(14), dp(6), dp(14), dp(6));
+        keyboardPreview.setMaxLines(2);
+        keyboardPreview.setEllipsize(android.text.TextUtils.TruncateAt.START);
+        keyboardPreview.setVisibility(View.GONE);
+        page.addView(keyboardPreview, new LinearLayout.LayoutParams(-1, -2));
+        page.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            WindowInsets insets = page.getRootWindowInsets();
+            boolean imeVisible;
+            if (Build.VERSION.SDK_INT >= 30) {
+                imeVisible = insets != null && insets.isVisible(WindowInsets.Type.ime());
+            } else {
+                android.graphics.Rect frame = new android.graphics.Rect();
+                page.getWindowVisibleDisplayFrame(frame);
+                imeVisible = page.getRootView().getHeight() - frame.bottom > dp(120);
+            }
+            boolean show = imeVisible && keyboardInput.hasFocus();
+            if (show && keyboardPreview.getVisibility() != View.VISIBLE)
+                keyboardPreview.setVisibility(View.VISIBLE);
+            else if (!show && keyboardPreview.getVisibility() == View.VISIBLE)
+                clearKeyboardPreview();
+        });
         footer.setBackgroundColor(getColor(R.color.surface));
         page.setOnApplyWindowInsetsListener((view, insets) -> {
             view.setPadding(insets.getSystemWindowInsetLeft(),
