@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.samet.windowstik" android:versionCode="58" android:versionName="V1">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.samet.windowstik" android:versionCode="59" android:versionName="V1">
 <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="35"/>
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
